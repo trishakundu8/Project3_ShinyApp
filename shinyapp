@@ -1,0 +1,85 @@
+#
+# SDS 313 Project 3
+#
+
+library(shiny)
+library(ggplot2)
+
+jazz
+
+# Define the Shiny UI
+ui <- fluidPage(
+  
+  titlePanel("Jazz Music Analysis"),
+  
+  sidebarLayout(
+    sidebarPanel(
+      h3("Create your Graph"),
+      checkboxGroupInput("variables", "Select Variables", 
+                         choices = c("Popularity", "Energy", "Loudness", "Tempo")),
+      selectInput("filterCentury", "Filter by Century", 
+                  choices = unique(jazz$Century), 
+                  selected = unique(jazz$Century)[1]),
+      radioButtons("colorChoice", "Choose Graph Color", 
+                   choices = c("Cadet Blue" = "navy", "Coral" = "maroon", "Dark Green" = "darkgreen")),
+      actionButton("update", "Update Graph"),
+      h5("Note: Select one variable for univariate analysis and two or more for multivariate analysis."),
+      img(src = "https://media.licdn.com/dms/image/D4D12AQHvGR6b1P-L7w/article-cover_image-shrink_600_2000/0/1710741504837?e=2147483647&v=beta&t=z-WB7K7H8nK4v4TuIBuPAPJABjf3uFOkfvucTPkRGEM", 
+          alt = "Jazz Music", height = "200px", width = "250px", style = "margin-top:15px;"),
+      p("Instruments in Jazz Music, POLVINYL")
+      ),
+    
+
+  mainPanel(
+      plotOutput("graphOutput"),
+      verbatimTextOutput("statsOutput"),
+
+    )
+  )
+)
+
+# Define server logic required to draw a histogram
+server <- function(input, output, session) {
+  
+  # Filter data
+  reactiveData <- reactive({
+    selectedData <- jazz
+    selectedData <- selectedData[selectedData$Century == input$filterCentury, ]
+    selectedData
+  })
+  
+  output$graphOutput <- renderPlot({
+    req(input$variables)
+    selectedData <- reactiveData()
+    color <- input$colorChoice
+    
+    if (length(input$variables) == 1) {
+      ggplot(selectedData, aes_string(x = input$variables[1])) +
+        geom_histogram(binwidth = 2, fill = color, col = "black") +
+        labs(title = paste("Distribution of", input$variables[1]),
+             x = input$variables[1], y = "Frequency") +
+        theme_minimal()
+    } else if (length(input$variables) == 2) {
+      ggplot(selectedData, aes_string(x = input$variables[1], y = input$variables[2])) +
+        geom_point(color = color, size = 2) +
+        labs(title = paste("Relationship Between", input$variables[1], "and", input$variables[2]),
+             x = input$variables[1], y = input$variables[2]) +
+        theme_minimal()
+    } else {
+      ggplot(selectedData, aes_string(x = input$variables[1], y = input$variables[2], color = input$variables[3])) +
+        geom_point(size = 2) +
+        labs(title = "Multivariate Analysis",
+             x = input$variables[1], y = input$variables[2], color = input$variables[3]) +
+        theme_minimal()
+    }
+  })
+  
+  output$statsOutput <- renderPrint({
+    req(input$variables)
+    selectedData <- reactiveData()
+    summary(selectedData[, input$variables, drop = FALSE])
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
