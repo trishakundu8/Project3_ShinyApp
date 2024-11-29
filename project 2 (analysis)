@@ -1,0 +1,221 @@
+---
+title: "Project 2 - SDS 313"
+author: "Trisha Kundu"
+date: "2024-10-15"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=8, warning=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=60), message=FALSE, echo=FALSE)
+```
+
+# Introduction
+
+**My project aims to analyze the relationship between multiple variables related to jazz music and its popularity. The dataset I have chosen to analyze is a class jazz dataset that is retrieved from Kaggle, a platform that provides data sets. The creator of this data set retrieved this data from Spotify, a music streaming platform. The data set can be accessed by clicking [here](https://www.kaggle.com/datasets/thebumpkin/750-classic-jazz-tracks-with-spotify-data/data). I chose this topic since jazz is one of my favorite music genres and I wanted to know more about the different aspects that went into the song and its popularity. I plan on investigating the tempo, year, popularity, loudness, energy, and mode the tracks are in, and comparing each variable to each other and how it effects popularity.**
+
+![Jazz Radio, "Classic Jazz", 2024](jazzpicture.jpg)
+
+# 2. Data Preparation:
+
+To obtain the data set, I downloaded the entire dataset off of Kaggle. To import it into R, I opened the data set with Microsoft Word and downloaded the file as a .csv file to import it into R. Since the data set was not extremely large or difficult to work with, I did not encounter any difficulties when preparing the data, however I had to parse some variables (Loudness and Energy) to make data analysis easier and make the numbers correct. I also created multiple loops with if/else statements built in to create new variables (some categorical and some numeric) to add more detail for better analysis. The new variables I created were the Century and Tempo Type for each track, and redid the Mode variable to make it specify and major or minor key. There were no NA or unknown values and the data set contains of 18 variables and 787 observations.
+
+```{r}
+#reading in original dataset as a csv file
+classicjazz <- read.csv("ClassicJazz.csv")
+#reading in multiple libraries that may help efficiency in the future
+library(tidyverse)
+library(ggplot2)
+library(rvest)
+library(stringr)
+library(dplyr)
+library(kableExtra)
+```
+
+```{r}
+#creating a subset that selects specific columns of interest that will be analyzed
+jazz <- select(classicjazz, Track, Album, Year, Tempo, Popularity, Energy, Mode, Loudness)
+
+#formatting the energy into percentages
+jazz$Energy <- (jazz$Energy) * 100
+
+#formatting the loudness into positive decibel numbers
+jazz$Loudness <- (jazz$Loudness) * -1
+
+#loop to create a new variable with the century
+new.century = vector(length = length(jazz$Year))
+for(j in 1:length(jazz$Year)) {
+  if (str_detect(jazz$Year[j], "19")) {
+    century = "20th"
+  } else if (str_detect(jazz$Year[j], "20")) {
+    century = "21st"
+  } else if (str_detect(jazz$Year[j], "18")) {
+    century = "19th"
+  } else {
+    century = NA  # Assign NA if none of the conditions are met
+  }
+  new.century[j] = century
+}
+  # Adding new variable to data
+  jazz$Century = new.century
+
+#new variable of loop with if/else for tempo names
+tempo.mark = vector(length = length(jazz$Tempo))
+for (t in 1:length(jazz$Tempo)){
+  if(jazz$Tempo[t] >=24 && jazz$Tempo[t] <= 45){
+  } else if (jazz$Tempo[t] >= 40 && jazz$Tempo[t] <= 60) {
+    tempo = "Largo"
+  } else if (jazz$Tempo[t] >= 61 && jazz$Tempo[t] <= 76) {
+    tempo = "Adagio"
+  } else if (jazz$Tempo[t] >= 77 && jazz$Tempo[t] <= 108) {
+    tempo = "Andante"
+  } else if (jazz$Tempo[t] >= 109 && jazz$Tempo[t] <= 120) {
+    tempo = "Moderato"
+  } else if (jazz$Tempo[t] >= 121 && jazz$Tempo[t] <= 168) {
+    tempo = "Allegro"
+  } else if (jazz$Tempo[t] >= 169 && jazz$Tempo[t] <= 220) {
+    tempo = "Presto"
+  } 
+  tempo.mark[t] = tempo
+}
+  # Adding new variable to data
+  jazz$Tempo_Marking = tempo.mark
+
+#loop to change the mode variable to specify a major or minor key
+my.vector = vector(length = length(jazz$Mode))
+for(i in 1:length(jazz$Mode)){
+  if (str_detect(jazz$Mode[i], "1") == TRUE){
+    key = paste("Major") 
+}
+if (str_detect(jazz$Mode[i], "0") == TRUE){
+    key = paste("Minor")
+}
+  my.vector[i] = key
+}
+  #applying changes to the variable in the data
+  jazz$Mode = my.vector
+
+```
+
+# 3. Variable Descriptions:
+
+```{r}
+#making the variables for the variable names and their descriptions and type to display in a table
+
+#vector of the category names
+variables<- (c("Track", "Album", "Year", "Tempo", "Popularity", "Energy", "Mode", "Loudness", "Century", "Tempo_Marking"))
+
+#vector of category descriptions
+descrip <- (c("Title of Song", "Album Name", "Year Released", "Speed of the Track in BPM", "Track's Popularity Score out of 100 based on Spotify Data", "Percentage of Intensity and activity level of the track", "Major or Minor Mode Used", "Average Loudness of the Track, in decibels (dB)", "Century the Track was Released In", "Tempo Marking Label"))
+
+#vector of the type
+type <- (c("Categorical", "Categorical", "Numerical", "Numerical", "Numerical", "Numerical", "Categorical", "Numerical", "Categorical", "Categorical"))
+  
+#data frame to combine all of the vectors
+combined <- data.frame(Variable = variables, Description = descrip, Type = type)
+
+#creating the table
+combined <- kable(combined)
+kable_styling(combined)
+```
+
+# 4. Univariate Analyses:
+
+```{r}
+#univariate graph displaying the popularity
+
+#making a ggplot variable for the jazz data set
+ggjazz <- ggplot(jazz)
+#graph
+ggjazz + geom_histogram(aes(x=Popularity), binwidth=2, fill='cadetblue', col='black') + 
+  labs(title= "Frequency of the Popularity Score of a Track Derived from Spotify", x='Popularity Score', y='Frequency') + ylim (0,80)
+
+```
+
+The univariate graphs shown above showcases the distribution of the **popularity score** of jazz tracks. It is slightly skewed right with a **median score of `r median(jazz$Popularity)`** and a **standard deviation of `r round(sd(jazz$Popularity), 2)`**. Since the graph is **slightly skewed**, the mean is expected to be higher since it is drawn to the direction of the skew. The mean is `r round(mean(jazz$Popularity), 2)`.
+
+```{r}
+#univariate graph displaying the energy
+ggjazz + geom_histogram(aes(x=Energy), binwidth=2, fill='cadetblue', col='black') + 
+  labs(title= "Energy (Intensity and Activity level) of Jazz Tracks", x='Energy Score', y='Frequency') + ylim (0,50)
+
+```
+
+The univariate graph that shows the frequency of **energy scores** that can range from 0 to 100. The energy score is the level of intensity and activity level of each track given by Spotify. The distribution is **skewed right and bimodal**, with peaks at around a score of 15 and 30. The **median is `r round(median(jazz$Energy), 2)`** and a **standard deviation of `r round(sd(jazz$Energy), 2)`**. The low median makes sense since some jazz music tends to be slower and calmer, so the energy levels would be lower in score.
+
+```{r}
+#univariate graph displaying the energy
+ggjazz + geom_histogram(aes(x=Energy), binwidth=2, fill='cadetblue', col='black') + 
+  labs(title= "Energy (Intensity and Activity level) of Jazz Tracks", x='Energy Score', y='Frequency') + ylim (0,50)
+
+```
+
+The graph above shows the distribution of frequencies for each **tempo marking**. The highest frequency is for the Andante, which is a range of 76-106 beats per minute. This makes sense because it is a moderately slow tempo, which is typical for a majority of jazz music. The lowest tempo marking frequency is Largo, which is 40-60 bpm which is an extremely slow tempo which is not common in many tracks of jazz or other genre's of music. The proportion of tracks with a marking of Andante is approximately 0.36, and the proportion of tracks with a marking of Largo is 0.01.
+
+```{r results = 'hide'}
+prop.table(table(jazz$Tempo_Marking))
+```
+
+```{r}
+#univariate graph displaying the loudness levels
+ggjazz + geom_histogram(aes(x=Loudness), binwidth = 1.5, fill='cadetblue', col='black') + 
+  labs(title= "Level of Loudness", x='Loudness (in decibels, dB)', y='Frequency') + ylim(0,200)
+```
+
+This graph displays the **frequency of decibels** a jazz track is. The distribution is very slightly skewed right, with a unimodal and slightly symmetric shape. The **median is `r round(median(jazz$Loudness),2)`** and a **standard deviation of `r round(sd(jazz$Loudness),2)`.** The distribution has a **maximum of `r round(max(jazz$Loudness),2)`**, which is a very low decibel count, which is interesting since some jazz music has many instruments and an upbeat tone, which can typically be louder in decibel range.
+
+# 5. Multivariate Analyses:
+
+```{r}
+#Box plot of the relationship between Loudness vs. tempo(category)
+ggjazz + geom_boxplot(aes(x=Loudness, y= Tempo_Marking), fill='cadetblue', col='black') + 
+  labs(title= "Loudness vs. Tempo Markings", x='Loudness (dB)', y='Tempo Marking')
+```
+
+The graph above shows the relationship between the **Loudness of a track based on each tempo marking**. The Presto tempo marking has the lowest median, which is surprising since it is the highest tempo marking which would typically mean a louder average decibel. The allegro marking has the lowest minimum loudness, which makes sense because of the moderate tempo which can contribute to a quieter track. Andante has the largest range of loudness, with many outliers, but a moderately low interquartile range.
+
+```{r}
+#graph of bivariate distribution of Year vs. Tempo
+ggjazz + geom_point(aes(x=Year, y= Popularity), fill='cadetblue', col='black') + 
+  labs(title= "Popularity vs Year", x='Year', y='Popularity')
+```
+
+This graph shows the relationship between the **year a track was released and its popularity**. These 2 variables have a **correlation of `r round(cor(jazz$Year, jazz$Popularity),2)`**. The extremely low and negative correlation show that there is no relationship between the 2 variables, but it is very slightly negative.
+
+```{r}
+#ggraph of bivariate distribution of popularity vs. mode
+ggjazz + geom_boxplot(aes(x=Energy, y= Mode), fill='cadetblue', col='black') + 
+  labs(title= "Energy vs. Mode", x='Energy Score', y='Major or Minor Mode')
+```
+
+The distribution shows the bivariate comparison between the **energy score** of a song and whether the song was in a **major or minor** key. There is not much of a difference in the energy score based on the mode since the medians are approximately the same and the minimums and maximums are also similar. There are some outliers for the major mode songs, that have some higher energy scores.
+
+```{r}
+#graph of bivariate distribution of century and popularity
+ggjazz + geom_boxplot(aes(x=Century, y= Popularity), fill='cadetblue', col='black') + 
+  labs(title= "Century vs. Popularity", x='Century', y='Popularity')
+```
+
+The box plot shows the **popularity of a track based on the century it was released**. The maximum for a 20th century's track is much higher than the rest of the centuries, but this may be due to more data tracked from tracks released in the 20th century since the 21st century does not have as many jazz albums released. The median of popularity is the highest for the track in the 19th century (in the year 1899), which is substantially higher than the rest of the medians.
+
+# 6. Reproducibility:
+
+To ensure reproducibility, I made sure to add comments on my code to make sure other users can understand the choices I made and can easily reproduce my report without much difficulty. I also did not manually select a working directory, so the code will work on any device.
+
+# 7. Choice Elements:
+
+The choice elements I used were 5 in-line codes, creating 2 new variables of interest, formatting at least one string variable, using a loop to process the data, and using an if statement. I used in-line codes in my graph analysis to portray univariate or bivariate statistics to help understand the analysis better. I created 2 new variables, Century and Tempo Marking. I made the century variable to create a variable that split the years up into more usable categories that I thought would help create a relationship with another variable. I created the Tempo marking variable to categorize each tempo marking so that analyzing its relationship with other variables was easier since I have music knowledge. I formatted the energy and loudness variables to make the energy level into percents from decimals, and the loudness positive numbers since the data set had negative numbers as its decibel count which did not make sense since songs are not that quiet. I used a loop with if statements in it while preparing my data 3 times. Once to make the new century variable, which went through the entire length of the Year variable and pasted a specific century based on what the year started with. Next, I had a loop with an if statement that categorized a tempo marking based on if the tempo was in a certain range or not, which looped through the entire data set and created a new variable. Lastly, I had another loop that went through the entire Mode variable and if the number was a 1 or 0, it replaced it with the corresponding major or minor key. Everything except the in-line codes show up at the beginning of my analysis, but I used the new or changed variables in my data analysis to make investigating my variables easier.
+
+# 8. Conclusion:
+
+My variables of interest did not have much of a correlation with each other, unlike what I expected. Some correlations I expected, like the tempo marking and the loudness of a song as well as the energy and the type of key it was in (mode: major or minor), did not have any correlation and were not related to each other at all. By completing the analysis of the jazz dataset, some major findings was that the most common tempo marking is Andante, which has a moderately slow pace. This makes sense because jazz music tends to be slower and at a regular pace. The jazz tracks, on average, have a lower popularity score on Spotify, which is also expected because jazz is not the most common genre of music, so there is not a lot of people listening to it. There is also a higher popularity score for the songs made in the 20th century than the 18th or 21st, which makes sense since a majority of tracks were made in the 20th century. Overall, in this analysis of jazz tracks, there is not a correlation between as many variables as expected, which means that all of the variables are independent and aren't effected by other variables strongly.
+
+# 9. References:
+
+The Bumpkin. “750 Classic Jazz Tracks (with Spotify Data).” Kaggle.com,
+
+2024, www.kaggle.com/datasets/thebumpkin/750-classic-jazz-tracks-with-spotify-data/data.
+
+Accessed 14 Nov. 2024.
