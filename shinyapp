@@ -5,7 +5,7 @@
 library(shiny)
 library(ggplot2)
 
-jazz
+jazz <- read.csv("jazz.csv")
 
 # Define the Shiny UI
 ui <- fluidPage(
@@ -15,21 +15,24 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       h3("Create your Graph"),
+      h5("Select one variable for univariate analysis and two or more for multivariate analysis."),
+     #check box to select variables
       checkboxGroupInput("variables", "Select Variables", 
                          choices = c("Popularity", "Energy", "Loudness", "Tempo")),
+     #filter by century
       selectInput("filterCentury", "Filter by Century", 
                   choices = unique(jazz$Century), 
                   selected = unique(jazz$Century)[1]),
+     #choose the color of the graph
       radioButtons("colorChoice", "Choose Graph Color", 
-                   choices = c("Cadet Blue" = "navy", "Coral" = "maroon", "Dark Green" = "darkgreen")),
-      actionButton("update", "Update Graph"),
-      h5("Note: Select one variable for univariate analysis and two or more for multivariate analysis."),
+                   choices = c("Navy Blue" = "navy", "Maroon" = "maroon", "Dark Green" = "darkgreen")),
+     #attaching image
       img(src = "https://media.licdn.com/dms/image/D4D12AQHvGR6b1P-L7w/article-cover_image-shrink_600_2000/0/1710741504837?e=2147483647&v=beta&t=z-WB7K7H8nK4v4TuIBuPAPJABjf3uFOkfvucTPkRGEM", 
           alt = "Jazz Music", height = "200px", width = "250px", style = "margin-top:15px;"),
       p("Instruments in Jazz Music, POLVINYL")
       ),
     
-
+#main panel will show the graph and descriptive statistics
   mainPanel(
       plotOutput("graphOutput"),
       verbatimTextOutput("statsOutput"),
@@ -41,30 +44,35 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
   
-  # Filter data
+  # Filter data based on century
   reactiveData <- reactive({
     selectedData <- jazz
     selectedData <- selectedData[selectedData$Century == input$filterCentury, ]
     selectedData
   })
   
+  #outputting the graphs based on selected data, filter, and chosen color
   output$graphOutput <- renderPlot({
     req(input$variables)
     selectedData <- reactiveData()
     color <- input$colorChoice
     
+    #if/else statements for the graphs with the selected variables
+    #for one selected variable
     if (length(input$variables) == 1) {
       ggplot(selectedData, aes_string(x = input$variables[1])) +
-        geom_histogram(binwidth = 2, fill = color, col = "black") +
+        geom_histogram(binwidth = 2, fill = color, col = "grey") +
         labs(title = paste("Distribution of", input$variables[1]),
              x = input$variables[1], y = "Frequency") +
         theme_minimal()
+      #for 2 selected variables
     } else if (length(input$variables) == 2) {
       ggplot(selectedData, aes_string(x = input$variables[1], y = input$variables[2])) +
         geom_point(color = color, size = 2) +
         labs(title = paste("Relationship Between", input$variables[1], "and", input$variables[2]),
              x = input$variables[1], y = input$variables[2]) +
         theme_minimal()
+      #for 3 selected variables (makes the 3rd variable shown by color)
     } else {
       ggplot(selectedData, aes_string(x = input$variables[1], y = input$variables[2], color = input$variables[3])) +
         geom_point(size = 2) +
@@ -74,12 +82,17 @@ server <- function(input, output, session) {
     }
   })
   
+  #prints out summary statistics for the distribution of variables
   output$statsOutput <- renderPrint({
     req(input$variables)
     selectedData <- reactiveData()
-    summary(selectedData[, input$variables, drop = FALSE])
+    if (length(input$variables) == 2){
+      return(cor(selectedData[, input$variables, drop = FALSE]))}
+    if (length(input$variables) == 1){
+      return(summary(selectedData[, input$variables, drop = FALSE]))}
+    
   })
 }
 
-# Run the application
+# Run the application 
 shinyApp(ui = ui, server = server)
